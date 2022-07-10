@@ -7,7 +7,7 @@ Please cite this project if you use it in your research:
 @Misc{nanoprep,
   author = {Xavier Capaldi},
   title = {Nanoprep: nanopore formation, characterization, growth and conditioning with Keithley 2400 Sourcemeter},
-  howpublished = {\url{https://github.com/xcapaldi/nanopores-with-keithley-2400}},
+  howpublished = {\url{https://github.com/xcapaldi/nanoprep}},
   note = {Accessed YYYY-MM-DD},
   year = 2022,
 }
