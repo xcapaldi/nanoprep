@@ -1,7 +1,19 @@
-#+TITLE: Grow/Condition Nanopores with Keithley 2400 Sourcemeter
+#+TITLE: Nanoprep: form/Characterize/Grow/Condition Nanopores with Keithley 2400 Sourcemeter
 #+AUTHOR: Xavier Capaldi
 
-Condition and grow nanopores using a [[https://pymeasure.readthedocs.io/en/latest/index.html#][PyMeasure]] interface with a Keithley 2400 Sourcemeter.
+Prepare nanopores using a [[https://pymeasure.readthedocs.io/en/latest/index.html#][PyMeasure]] interface with a Keithley 2400 Sourcemeter.
+Please cite this project if you use it in your research:
+
+#+BEGIN_SRC
+@Misc{nanoprep,
+  author = {Xavier Capaldi},
+  title = {Nanoprep: nanopore formation, characterization, growth and conditioning with Keithley 2400 Sourcemeter},
+  howpublished = {\url{https://github.com/xcapaldi/nanopores-with-keithley-2400}},
+  note = {Accessed YYYY-MM-DD},
+  year = 2022,
+}
+#+END_SRC
+
 This program was heavily inspired by the following paper.
 I strongly recommend citing it if you use this project for research that will be published.
 
