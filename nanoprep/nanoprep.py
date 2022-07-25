@@ -64,6 +64,36 @@ else:
 
 loaded, defaults = load_config(config)
 
+# extend parameter class to hold a text comment string
+class StringParameter(Parameter):
+    def __init__(self, name, **kwargs):
+        super().__init__(name, **kwargs)
+
+    @property
+    def value(self):
+        if self.is_set():
+            return str(self._value)
+        else:
+            raise ValueError("Parameter value is not set")
+
+    @value.setter
+    def value(self, value):
+        try:
+            value = str(value)
+        except ValueError:
+            raise ValueError(
+                f"StringParameter given non-string value of " "type {type(value)}"
+            )
+        self._value = value
+
+    def __str__(self):
+        if not self.is_set():
+            return ""
+        return self._value
+
+    def __repr__(self):
+        return f"<{self.__class__.__name__}(name={self.name},value={self._value})>"
+
 
 class NanoprepProcedure(Procedure):
     # order and appearance of columns in data file
@@ -128,33 +158,8 @@ class NanoprepProcedure(Procedure):
     # Sustained emitter
     sustained = BooleanParameter("Sustained data", default=defaults["sustained"])
 
-    # Cutoffs
-    enable_cutoff_time = BooleanParameter("Cutoff time", default=False)
-    cutoff_time = FloatParameter(
-        "Cutoff time",
-        units="s",
-        default=defaults["cutoff time"],
-        minimum=0,
-        group_by="enable_cutoff_time",
-    )
-
-    enable_cutoff_current = BooleanParameter("Cutoff current", default=False)
-    cutoff_current = FloatParameter(
-        "Cutoff current",
-        units="nA",
-        default=defaults["cutoff current"],
-        minimum=0,
-        group_by="enable_cutoff_current",
-    )
-
-    enable_cutoff_diameter = BooleanParameter("Cutoff pore diameter", default=False)
-    cutoff_diameter = FloatParameter(
-        "Cutoff pore diameter",
-        units="nm",
-        default=defaults["cutoff diameter"],
-        minimum=0,
-        group_by="enable_cutoff_diameter",
-    )
+    # Sample identifier
+    identifier = StringParameter("Sample identifier")
 
     # this function runs first when the procedure is called
     def startup(self):
@@ -190,11 +195,6 @@ class NanoprepProcedure(Procedure):
                 self.effective_length * 10**-9,  # m
                 self.channel_conductance,
                 self.pipette_offset / 1000,  # V
-                self.cutoff_time if self.enable_cutoff_time else None,
-                self.cutoff_current * 10**-9 if self.enable_cutoff_current else None,
-                self.cutoff_diameter * 10**-9
-                if self.enable_cutoff_diameter
-                else None,
             )
         )
 
@@ -219,12 +219,7 @@ class MainWindow(ManagedWindow):
                 "progress_style",
                 "protocol",
                 "sustained",
-                "enable_cutoff_time",
-                "cutoff_time",
-                "enable_cutoff_current",
-                "cutoff_current",
-                "enable_cutoff_diameter",
-                "cutoff_diameter",
+                "identifier",
             ],
             # this actually goes into the display window at bottom
             displays=[
@@ -234,6 +229,7 @@ class MainWindow(ManagedWindow):
                 "pipette_offset",
                 "protocol",
                 "sustained",
+                "identifier",
             ],
             x_axis="Time (s)",
             y_axis="Current (A)",

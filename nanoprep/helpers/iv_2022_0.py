@@ -5,6 +5,9 @@ This module is licensed under the MIT License.
 Copyright (c) 2022 Xavier Capaldi
 """
 
+__version__ = "2022.0"
+__author__ = "Xavier Capaldi"
+
 import sys
 import numpy as np
 from scipy.optimize import curve_fit

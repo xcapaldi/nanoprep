@@ -26,9 +26,6 @@ def load_config(path):
         "channel conductance": 0,
         "pipette offset": 0,
         "progress style": "absolute",
-        "cutoff time": 360,
-        "cutoff current": 1,
-        "cutoff diameter": 20,
         "sustained": False,
     }
 
@@ -61,9 +58,6 @@ class Parameters:
         effective_length,
         channel_conductance,
         pipette_offset,
-        cutoff_time,
-        cutoff_current,
-        cutoff_diameter,
     ):
         self.sourcemeter = sourcemeter
         self.log = log
@@ -73,9 +67,6 @@ class Parameters:
         self.effective_length = effective_length
         self.channel_conductance = channel_conductance
         self.pipette_offset = pipette_offset
-        self.cutoff_time = cutoff_time
-        self.cutoff_current = cutoff_current
-        self.cutoff_diameter = cutoff_diameter
 
 
 class Protocol:

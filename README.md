@@ -4,7 +4,7 @@
 
 Nanopore formation, growth, conditioning and characterization using a [PyMeasure](https://pymeasure.readthedocs.io/en/latest/index.html) interface with a Keithley 2400 Sourcemeter.
 
-<img src="docs/conditioning-interface.png" alt="NanoPrep interface" width="800"/>
+<img src="docs/conditioning-interface.png" alt="NanoPrep interface (needs to be updated)" width="800"/>
 
 Please cite this project if you use it in your research:
 
@@ -63,7 +63,14 @@ In particular `aborter` is used to abort the running protocol, `emitter` handles
 There are helper classes as well for calculating pore sizes and quickly plotting data.
 These `utilities` should be largely static as they are fundamental to easy protocol design.
 In the `helpers` directory there are subsections of protocols that can be applied in a full protocol in a custom configuration.
-For example, in `iv.py` you can run an IV curve without programming all the logic manually yourself.
+For example, you can import from `iv_2022_0.py` to run an IV curve without programming all the logic manually yourself.
+
+### Versioning
+NanoPrep as a whole uses [semantic versioning](https://semver.org/) with the goal of minimizing any breaking change in `nanoprep` or the `utilities`.
+Modules in the `helpers` directory use something similar to [date-based versioning](https://peps.python.org/pep-0440/).
+The format is **year**.**version**.
+A given version (`iv_2022_0`) should remain stable unless there is breaking change in NanoPrep overall.
+Contributors can update the helper methods by creating a new version of the module (`iv_2022_1`) without breaking functionality for anyone using an older version.
 
 ## Configuration
 A key feature of NanoPrep is its configuration file.
@@ -84,9 +91,10 @@ First you should import the helpers, utilities and any external modules your scr
 ```Python
 from utilities.protocol import Protocol
 from utilities.timer import Timer
-from helpers.iv import iv_curve
-from helpers.pulse import square_pulse, wait
-from helpers.cbd import flat_cbd, ramp_cbd
+from helpers.iv_2022_0 import iv_curve
+from helpers.pulse_2022_0 import square_pulse, wait
+from helpers.cbd_2022_0 import flat_cbd, ramp_cbd
+from helpers.pipette_offset_2022_0 import pipette_offset
 ```
 
 The only import strictly required is `utilities.protocol` which is necessary to define protocols in your config.
@@ -105,9 +113,6 @@ defaults = {
     "channel conductance": 0, #S
     "pipette offset": 0, # mV
     "progress style": "absolute",
-    "cutoff time": 360, # s
-    "cutoff current": 1, # nA
-    "cutoff diameter": 20, # nm
     "sustained": False,
     }
 ```
@@ -141,16 +146,11 @@ Notice that your protocol must have a name that is used in the UI and it must ha
 - effective_length
 - channel_conductance
 - pipette_offset
-- cutoff_time
-- cutoff_current
-- cutoff_diameter
 
 Just because the protocol's run method has to accept these parameters, doesn't mean it has to use them.
-In particular, your protocol is not required to respect any of the cutoffs.
 
 Here is a sample protocol that runs a mini-IV curve between voltage pulses.
-If a cutoff diameter is set in UI, it will display progress and stop at the cutoff.
-If not, it will run indefinitely or until the user aborts the protocol.
+It will automatically stop when it reaches the cutoff.
 Note this protocol is taking advantage of helper functions to do the pulse and IV curve.
 
 ```Python
@@ -183,13 +183,13 @@ class SquareWaveGrowToDimension(Protocol):
         )
 
         diameter = init_diameter
+        cutoff_diameter = 20e-9  # nm
 
         while True:
-            if p.cutoff_diameter is not None:
-                if diameter >= p.cutoff_diameter:
-                    break
+            if diameter >= cutoff_diameter:
+                break
 
-                p.emitter.progress(init_diameter, p.cutoff_diameter, diameter)
+            p.emitter.progress(init_diameter, cutoff_diameter, diameter)
 
             if p.aborter.should_abort():
                 break
@@ -202,7 +202,7 @@ class SquareWaveGrowToDimension(Protocol):
                 p.pipette_offset,
                 pulse_time=0.5,  # pulse time
                 pulse_voltage=10,  # pulse voltage
-                state=2,  # state for pulse application
+                state=10,  # state for pulse application
             )
             diameter = iv_curve(
                 t,
@@ -223,10 +223,11 @@ class SquareWaveGrowToDimension(Protocol):
                 estimation_state=0,  # state number for running IV
                 reporting_state=1,  # state for reporting estimated size
             )
+
 ```
 
 ### Dynamic reload
-If for some reason you need to modify a protocol mid-experiment, you do *not* need to restart NanoPrep.
+If for some reason you need to modify a protocol mid-experiment, you do **not** need to restart NanoPrep.
 Every time you click `Queue` in the NanoPrep UI, the config file is parsed again, reloading the latest changes to you protocols.
 This means changing something like the pulse voltage is as simple as changing it in your config, saving the config and then clicking `Queue`.
 
@@ -238,19 +239,14 @@ The saved data is formatted as a CSV with metadata and header:
 #Parameters:
 #	Channel conductance: 0 S
 #	Compliance current: 1 A
-#	Cutoff current: 1 nA
-#	Cutoff pore diameter: 20 nm
-#	Cutoff time: 360 s
 #	Effective pore length: 12 nm
-#	Cutoff current: False
-#	Cutoff pore diameter: False
-#	Cutoff time: False
 #	GPIB address: 19
 #	Pipette offset: 0 mV
 #	Progress style: absolute
 #	Protocol: Grow to dimension
 #	Solution conductivity: 115.3 mS/cm
 #	Sustained data: False
+#   Sample identifier: Batch B, chip 13
 #Data:
 Time (s),Voltage (V),Current (A),Estimated diameter (nm),State
 0.00262410007417202,-0.2,-2.011296e-08,nan,0
@@ -305,15 +301,16 @@ I am open to running those tests myself if you are unable.
 To contribute, you can fork the project and open a pull request.
 I just ask that you add any new dependencies to `requirements.txt` and run [black](https://github.com/psf/black) on any code changes.
 Use [Google-style docstrings](https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html) (although my current documentation is sparse).
+The two easiest points of entry are adding your own configuration to the `contrib` directory as a reference for other or adding an new/improved `helper`.
 
-Here are some projects that I think would contribute greatly to the project:
+Here are some larger tasks that I think would contribute greatly to the project:
 
-* Apply the [typing](https://docs.python.org/3/library/typing.html) library across the project for clarity.
-* Introduce system tests for individual protocols using dummy `emitters`, `loggers`, `timers` and `sourcemeters`.
-* Create a dummy sourcemeter for PyMeasure so we can write actual system tests.
-* Documentation (ideally use Google-style docstrings and [lazydocs](https://github.com/ml-tooling/lazydocs).
-* Migrate old protocols and write new one.
-* Write a configuration validator so users can see what parts of this config are not working.
+[ ] Apply the [typing](https://docs.python.org/3/library/typing.html) library across the project for clarity.
+[ ] Introduce system tests for individual protocols using dummy `emitters`, `loggers`, `timers` and `sourcemeters`.
+[ ] Create a dummy sourcemeter for PyMeasure so we can write actual system tests.
+[ ] Documentation (ideally use Google-style docstrings and [lazydocs](https://github.com/ml-tooling/lazydocs).
+[X] Migrate old protocols and write new one.
+[ ] Write a configuration validator so users can see what parts of this config are not working.
 
 ## License
 MIT License

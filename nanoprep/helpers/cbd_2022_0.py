@@ -5,6 +5,9 @@ This module is licensed under the MIT License.
 Copyright (c) 2022 Xavier Capaldi
 """
 
+__version__ = "2022.0"
+__author__ = "Xavier Capaldi"
+
 import numpy as np
 
 
@@ -70,7 +73,11 @@ def ramp_cbd(
         emitter.record(time=total_time, voltage=voltage, current=current, state=state)
 
         if lap_time > capacitance_delay:
-            if current >= cutoff_current:
-                break
+            if ramp_rate > 0:
+                if current >= cutoff_current:
+                    break
+            else:
+                if current <= cutoff_current:
+                    break
 
     log.info(f"Breakdown at {voltage}V")
