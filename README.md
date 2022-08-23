@@ -49,50 +49,27 @@ You can check the dependencies in `requirements.txt` which holds the output of `
 If you want to install all the dependencies, just run `pip install -r requirements.txt`.
 
 ## Project structure
-`nanoprep.py` is the main interface and loads all the protocols to populate the main window.
-Unfortunately due to the code structure of PyMeasure, `nanoprep.py` does need to be modified as new protocols are added.
-Protocols inherit from the `Protocol` class in `protocol_template.py`.
-Protocols are actually relatively ignorant of the whole complexity of the system which was engineered to hopefully make protocol development faster and easier.
-Each protocol has a `run` method with many parameters.
-These must be supplied via PyMeasure `inputs` in `nanoprep.py`.
-They are configured to display dynamically only when the associated protocol is selected to declutter to window.
-Protocols can use the `logger`, `recorder` and `progressor` to write to the log, emit data for saving or notify of progress respectively.
+`nanoprep.py` is the main interface and loads everything to populate the main window.
+A python configuration can be dropped directly onto `nanoprep.py` to start it with that configuration.
+Starting `nanoprep.py` without a configuration will cause it to load the default configuration.
+The configuration file must consist of one or more Protocols which inherit from the `Protocol` class in `utilities/protocol.py`.
+Each protocol has a name and a static `run` method.
+They must accept the standard set of parameters which are passed from PyMeasure `inputs` in `nanoprep.py`.
 The underlying PyMeasure tools have largely been wrapped by classes in the `utilities` directory.
-There are helper classes as well for sensitive timing, calculating pore sizes and quickly plotting data.
+In particular `aborter` is used to abort the running protocol, `emitter` handles data and progress and `timer` handles the timing of protocols.
+There are helper classes as well for calculating pore sizes and quickly plotting data.
+These `utilities` should be largely static as they are fundamental to easy protocol design.
+In the `helpers` directory there are subsections of protocols that can be applied in a full protocol in a custom configuration.
+For example, in `iv.py` you can run an IV curve without programming all the logic manually yourself.
 
 ### Configuration
 A key feature of NanoPrep is its configuration file.
-It uses the configuration format defined by Python's [configparser](https://docs.python.org/3/library/configparser.html).
-There is a default configuration (`default.ini`) which should have an exhaustive list of parameters.
-Each protocol can be listed and every default parameter can be set.
+It uses a Python configuration format.
+This is a bit more complex than a pure UI or simpler text configuration but provides much more power to the user.
+There is a default configuration (`sample_config.py`) which should have examples of custom protocols.
 The user can write their own configuration and only include the protocols they use.
 If you start NanoPrep by dragging a configuration onto the Python file (or a shortcut to that file), it will start by loaded the configuration.
-Only the defined protocols will be displayed in the menu and all the fields will be set for them by default.
-
-Here is an example configuration:
-
-```INI
-[DEFAULT]
-gpib address = 19
-compliance current = 1.0
-solution conductivity = 11.53
-channel conductance = 0.0
-pipette offset = 0.0
-progress style = absolute
-data directory = C:\...
-
-[iv curve]
-sweep start = -0.200
-sweep step = 0.020
-sweep number = 21
-sweep duration = 3
-sweep discard = 2
-
-[controlled dielectric breakdown]
-breakdown voltage = 8
-cutoff current = 200e-9
-capacitance_delay = 20
-```
+Only the defined protocols will be displayed in the menu.
 
 ### Emitted data
 The saved data is formatted as a CSV with metadata and header:
@@ -106,17 +83,12 @@ The saved data is formatted as a CSV with metadata and header:
 #       Cutoff current: 6e-07 A
 #       Effective pore length: 1.2e-08 m
 #       GPIB address: 19
-#       Initial portion of sweep to discard in analyis: 2 s
-#       Sweep duration: 3 s
-#       Number of sweeps: 21
-#       First sweep: -0.2 V
-#       Step between sweeps: 0.02 V
 #       Pipette offset: 0 V
 #       Progress style: absolute
 #       Protocol: iv curve
 #       Solution conductivity: 7.52 S/m
 #Data:
-Time (s),Voltage (V),Current (A),Estimated diameter (m),State
+Time (s),Voltage (V),Current (A),Estimated diameter (nm),State
 0.002452900167554617,-0.2,-4.902002e-09,nan,nan
 0.26572120003402233,-0.2,-4.781735e-09,nan,nan
 0.3914447999559343,-0.2,-4.676931e-09,nan,nan
@@ -129,6 +101,18 @@ Unused fields will be filled by a `numpy.nan`.
 State is very useful when you have some protocols that consists of smaller protocols lumped together.
 For example, one that combines breakdown with characterization and conditioning.
 You could pass states for each of the three processes so that later it is easier to filter the data.
+
+### Live plotting
+PyMeasure plotting interface has some flaws with this method of recording data.
+In particular any plottable data missing some of the fields will behave strangly.
+In the sample configuration you will note that even when recording the estimated pore diameter, the voltage, current and time are also recorded.
+This is to ensure the time vs. voltage and time vs. current plots behave normally.
+However there is no such special consideration for the time vs. estimated diameter plot.
+Usually the plot works fine while the protocol is running but once it ends and you zoom or move around, the plot will disappear.
+You need to reset the Time axis to make it reappear.
+An alternative solution is to emit an estimated diameter at every time step even though we only measure it occasionally.
+This will give the data a stepped appearance but solve the live plot issue.
+I leave the preferred solution up to the user.
 
 ### Quick plotting
 `utilities/quick-plot.py` is just a quick-dirty-plotting tool which doesn't perform any analysis or cleaning of the data.
@@ -180,7 +164,7 @@ Use [Google-style docstrings](https://sphinxcontrib-napoleon.readthedocs.io/en/l
 Here are some projects that I think would contribute greatly to the project:
 
 * Apply the [typing](https://docs.python.org/3/library/typing.html) library across the project for clarity.
-* Introduce system tests for individual protocols using dummy `recorders`, `loggers`, `progressors` and `sourcemeters`.
+* Introduce system tests for individual protocols using dummy `emitters`, `loggers`, `timers` and `sourcemeters`.
 * Create a dummy sourcemeter for PyMeasure so we can write actual system tests.
 * Documentation (ideally use Google-style docstrings and [lazydocs](https://github.com/ml-tooling/lazydocs).
 * Migrate old protocols and write new one.

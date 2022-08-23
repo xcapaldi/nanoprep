@@ -7,9 +7,9 @@ Copyright (c) 2022 Xavier Capaldi.
 
 from utilities.protocol import Protocol
 from utilities.timer import Timer
-from utilities.iv import iv_curve
-from utilities.pulse import square_pulse, wait
-from utilities.cbd import flat_cbd, ramp_cbd
+from helpers.iv import iv_curve
+from helpers.pulse import square_pulse, wait
+from helpers.cbd import flat_cbd, ramp_cbd
 
 
 class IV(Protocol):
