@@ -1,29 +1,10 @@
 # -*- coding: utf-8 -*-
-""" Nanopore size calculator
+""" Nanopore size calculator module
 
-MIT License
+This module is licensed under the MIT License.
+Copyright (c) 2022 Xavier Capaldi.
 
-Copyright (c) 2022 Xavier Capaldi
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
-
-This calculator is based on the paper by Dekker's group:
+The calculator is based on the paper by Dekker's group:
 https://iopscience.iop.org/article/10.1088/0957-4484/22/31/315101/meta
 DOI: 10.1088/0957-4484/22/31/315101
 
@@ -59,13 +40,13 @@ def convert_nAmV(conductance):
 
 def estimate_diameter(
     solution_conductivity=11.53,
-    error_conductivity=0,
+    error_conductivity=0.0,
     effective_length=2e-08,
-    error_length=0,
-    conductance=0,
-    error_conductance=0,
-    channel_conductance=0,
-    error_channel=0,
+    error_length=0.0,
+    conductance=0.0,
+    error_conductance=0.0,
+    channel_conductance=0.0,
+    error_channel=0.0,
     double_electrode=False,
 ):
     """

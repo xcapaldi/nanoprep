@@ -35,11 +35,8 @@ https://knowledge.ni.com/KnowledgeArticleDetails?id=kA03q000000YGw4CAG&l=en-CA
 
 import sys
 import time
-import math
 import logging
-import configparser
 from datetime import datetime
-from pathlib import Path
 
 from pymeasure.log import console_log
 from pymeasure.instruments.keithley import Keithley2400
@@ -50,34 +47,22 @@ from pymeasure.experiment import Results
 from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 
-from utilities import maybe, progress, record
-import protocols
+from utilities.aborter import Aborter
+from utilities.emitter import Emitter
+from utilities.protocol import load_config
 
-iv_curve = protocols.IVCurve()
-controlled_dielectric_breakdown = protocols.ControlledDielectricBreakdown()
 
 log = logging.getLogger("")
 log.addHandler(logging.NullHandler())
 
-# inputs stored as global variable so we can modify from within the Procedure
-inputs = [
-    "gpib_address",
-    "compliance_current",
-    "solution_conductivity",
-    "effective_length",
-    "channel_conductance",
-    "pipette_offset",
-    "progress_style",
-    "protocol",
-]
-
 # read user configuration if supplied by dropping
 # onto this script in windows
-config = configparser.ConfigParser()
 if len(sys.argv) > 1:
-    config.read(sys.argv[1])
-if len(config.sections()) == 0:
-    config.read("default.ini")
+    config = sys.argv[1]
+else:
+    config = "sample_config.py"
+
+loaded = load_config(config)
 
 
 class NanoprepProcedure(Procedure):
@@ -86,146 +71,87 @@ class NanoprepProcedure(Procedure):
         "Time (s)",
         "Voltage (V)",
         "Current (A)",
-        "Estimated diameter (m)",
+        "Estimated diameter (nm)",
         "State",
     ]
 
     # Hardware Settings
     gpib_address = IntegerParameter(
-        "GPIB address", default=maybe.from_config(config, "DEFAULT", "gpib address", 19)
+        "GPIB address",
+        default=19,
     )
     compliance_current = FloatParameter(
         "Compliance current",
         units="A",
-        default=maybe.from_config(config, "DEFAULT", "compliance current", 1.0),
+        default=1.0,
         minimum=0,
     )
 
     # Sample Parameters
     solution_conductivity = FloatParameter(
         "Solution conductivity",
-        units="S/m",
+        units="mS/cm",
         # default is 2 M LiCl
-        default=maybe.from_config(config, "DEFAULT", "solution conductivity", 11.53),
+        default=115.3,
         minimum=0,
     )
     effective_length = FloatParameter(
         "Effective pore length",
-        units="m",
-        default=maybe.from_config(config, "DEFAULT", "effective pore length", 20e-9),
+        units="nm",
+        default=12,
         minimum=0,
     )
     channel_conductance = FloatParameter(
         "Channel conductance",
         units="S",
-        default=maybe.from_config(config, "DEFAULT", "channel conductance", 0.0),
+        default=0,
         minimum=0,
     )
 
     # Experiment Parameters
     pipette_offset = FloatParameter(
         "Pipette offset",
-        units="V",
-        default=maybe.from_config(config, "DEFAULT", "pipette offset", 0.0),
+        units="mV",
+        default=0,
     )
 
     progress_style = ListParameter(
         "Progress style",
         choices=["absolute", "relative"],
-        default=maybe.from_config(config, "DEFAULT", "progress style", "absolute"),
+        default="absolute",
     )
 
     # Protocols
     protocol = ListParameter(
-        "Protocol", choices=config.sections(), default=config.sections()[0]
+        "Protocol", choices=list(loaded.keys()), default=list(loaded.keys())[0]
     )
 
-    # Protocol specific parameters
-    ## iv curve
-    iv_curve_sweep_start = FloatParameter(
-        "First sweep",
-        units="V",
-        default=maybe.from_config(config, iv_curve.name, "sweep start", -0.2),
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=iv_curve.name,
-    )
-    iv_curve_sweep_step = FloatParameter(
-        "Step between sweeps",
-        units="V",
-        default=maybe.from_config(config, iv_curve.name, "sweep step", 0.02),
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=iv_curve.name,
-    )
-    iv_curve_sweep_number = IntegerParameter(
-        "Number of sweeps",
-        default=maybe.from_config(config, iv_curve.name, "sweep number", 21),
-        minimum=1,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=iv_curve.name,
-    )
-    iv_curve_sweep_duration = FloatParameter(
-        "Sweep duration",
+    # Cutoffs
+    enable_cutoff_time = BooleanParameter("Cutoff time", default=False)
+    cutoff_time = FloatParameter(
+        "Cutoff time",
         units="s",
-        default=maybe.from_config(config, iv_curve.name, "sweep duration", 3),
+        default=360,
         minimum=0,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=iv_curve.name,
-    )
-    iv_curve_sweep_discard = FloatParameter(
-        "Initial portion of sweep to discard in analyis",
-        units="s",
-        default=maybe.from_config(config, iv_curve.name, "sweep discard", 2),
-        minimum=0,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=iv_curve.name,
-    )
-    inputs.extend(
-        [
-            f"{iv_curve_sweep_start=}".split("=")[0],
-            f"{iv_curve_sweep_step=}".split("=")[0],
-            f"{iv_curve_sweep_number=}".split("=")[0],
-            f"{iv_curve_sweep_duration=}".split("=")[0],
-            f"{iv_curve_sweep_discard=}".split("=")[0],
-        ]
+        group_by="enable_cutoff_time",
     )
 
-    ## controlled dielectric breakdown
-    controlled_dielectric_breakdown_breakdown_voltage = FloatParameter(
-        "Breakdown voltage",
-        units="V",
-        default=maybe.from_config(
-            config, controlled_dielectric_breakdown.name, "breakdown voltage", 8
-        ),
-        minimum=0,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=controlled_dielectric_breakdown.name,
-    )
-    controlled_dielectric_breakdown_cutoff_current = FloatParameter(
+    enable_cutoff_current = BooleanParameter("Cutoff current", default=False)
+    cutoff_current = FloatParameter(
         "Cutoff current",
-        units="A",
-        default=maybe.from_config(
-            config, controlled_dielectric_breakdown.name, "cutoff current", 200e-9
-        ),
+        units="nA",
+        default=1,
         minimum=0,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=controlled_dielectric_breakdown.name,
+        group_by="enable_cutoff_current",
     )
-    controlled_dielectric_breakdown_capacitance_delay = FloatParameter(
-        "Capacitance delay",
-        units="s",
-        default=maybe.from_config(
-            config, controlled_dielectric_breakdown.name, "capacitance delay", 20
-        ),
+
+    enable_cutoff_diameter = BooleanParameter("Cutoff pore diameter", default=False)
+    cutoff_diameter = FloatParameter(
+        "Cutoff pore diameter",
+        units="nm",
+        default=20,
         minimum=0,
-        group_by=f"{protocol=}".split("=")[0],
-        group_condition=controlled_dielectric_breakdown.name,
-    )
-    inputs.extend(
-        [
-            f"{controlled_dielectric_breakdown_breakdown_voltage=}".split("=")[0],
-            f"{controlled_dielectric_breakdown_cutoff_current=}".split("=")[0],
-            f"{controlled_dielectric_breakdown_capacitance_delay=}".split("=")[0],
-        ]
+        group_by="enable_cutoff_diameter",
     )
 
     # this function runs first when the procedure is called
@@ -249,50 +175,20 @@ class NanoprepProcedure(Procedure):
 
     # main process in the procedure
     def execute(self):
-        recorder = record.Recorder(self.emit)
-        match self.progress_style:
-            case "absolute":
-                progressor = progress.AbsoluteProgressor(self.emit)
-            case "relative":
-                progressor = progress.RelativeProgressor(self.emit)
-            case _:
-                pass
-
-        match self.protocol:
-            case iv_curve.name:
-                iv_curve.run(
-                    log,
-                    self.sourcemeter,
-                    recorder,
-                    self.should_stop,
-                    self.solution_conductivity,
-                    self.effective_length,
-                    self.channel_conductance,
-                    self.pipette_offset,
-                    progress.AbsoluteProgressor(self.emit),
-                    self.iv_curve_sweep_start,
-                    self.iv_curve_sweep_step,
-                    self.iv_curve_sweep_number,
-                    self.iv_curve_sweep_duration,
-                    self.iv_curve_sweep_discard,
-                )
-            case controlled_dielectric_breakdown.name:
-                controlled_dielectric_breakdown.run(
-                    log,
-                    self.sourcemeter,
-                    recorder,
-                    self.should_stop,
-                    self.solution_conductivity,
-                    self.effective_length,
-                    self.channel_conductance,
-                    self.pipette_offset,
-                    progress.AbsoluteProgressor(self.emit),
-                    self.controlled_dielectric_breakdown_breakdown_voltage,
-                    self.controlled_dielectric_breakdown_cutoff_current,
-                    self.controlled_dielectric_breakdown_capacitance_delay,
-                )
-            case _:
-                pass
+        # refresh the configuration to get latest parameter changes
+        load_config(config)[self.protocol].run(
+            self.sourcemeter,
+            log,
+            Aborter(self.should_stop, log),
+            Emitter(self.emit, self.progress_style),
+            self.solution_conductivity / 10,  # S/m
+            self.effective_length * 10**-9,  # m
+            self.channel_conductance,
+            self.pipette_offset / 1000,  # V
+            self.cutoff_time if self.enable_cutoff_time else None,
+            self.cutoff_current * 10**-9 if self.enable_cutoff_current else None,
+            self.cutoff_diameter * 10**-9 if self.enable_cutoff_diameter else None,
+        )
 
     # safely shut down instrument
     def shutdown(self):
@@ -305,7 +201,22 @@ class MainWindow(ManagedWindow):
     def __init__(self):
         super(MainWindow, self).__init__(
             procedure_class=NanoprepProcedure,
-            inputs=inputs,
+            inputs=[
+                "gpib_address",
+                "compliance_current",
+                "solution_conductivity",
+                "effective_length",
+                "channel_conductance",
+                "pipette_offset",
+                "progress_style",
+                "protocol",
+                "enable_cutoff_time",
+                "cutoff_time",
+                "enable_cutoff_current",
+                "cutoff_current",
+                "enable_cutoff_diameter",
+                "cutoff_diameter",
+            ],
             # this actually goes into the display window at bottom
             displays=[
                 "solution_conductivity",
@@ -320,7 +231,7 @@ class MainWindow(ManagedWindow):
             hide_groups=True,
             directory_input=True,
         )
-        self.directory = maybe.from_config(config, "DEFAULT", "data directory", ".")
+        self.directory = "."
         self.setWindowTitle(
             "Nanoprep: pore formation, characterization, growth and conditioning"
         )
