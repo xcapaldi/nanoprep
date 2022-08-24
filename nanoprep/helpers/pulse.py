@@ -14,8 +14,8 @@ def square_pulse(
     emitter,
     aborter,
     pipette_offset,
-    pulse_time,
-    pulse_voltage,
+    pulse_time=0.5,  # s
+    pulse_voltage=8,  # V
     state=np.nan,
 ):
     # ensure timer is started
@@ -40,7 +40,9 @@ def square_pulse(
             break
 
 
-def wait(timer, sourcemeter, emitter, aborter, pipette_offset, wait_time, state=np.nan):
+def wait(
+    timer, sourcemeter, emitter, aborter, pipette_offset, wait_time=0.5, state=np.nan
+):
     square_pulse(
         timer, sourcemeter, emitter, aborter, pipette_offset, wait_time, 0, state
     )

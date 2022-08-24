@@ -13,6 +13,7 @@ from scipy.optimize import curve_fit
 sys.path.append("..")
 from utilities import calculator
 
+
 def iv_curve(
     timer,
     sourcemeter,
@@ -23,15 +24,15 @@ def iv_curve(
     effective_length,
     channel_conductance,
     pipette_offset,
-    sweep_start,
-    sweep_step,
-    sweep_number,
-    sweep_duration,
-    sweep_discard,
-    stacked,
-    estimation_state=np.nan,
-    reporting_state=np.nan,
-    report_progress=False,
+    sweep_start=-0.2,  # V
+    sweep_step=0.02,  # V
+    sweep_number=21,  # number of sweeps
+    sweep_duration=5,  # s
+    sweep_discard=0.75,  # portion of sweep to discard for pore size estimation
+    sweep_stacked=True,  # stack the sweeps (each sweeps shares same time unit)
+    estimation_state=np.nan,  # state while collecting sweeps
+    reporting_state=np.nan,  # state when reporting actual pore estimate
+    report_progress=False,  # allow IV to report all progress (i.e. just running an IV)
 ):
     """Run IV curve protocol with supplied parameters.
 
@@ -49,7 +50,7 @@ def iv_curve(
     sweep_number: Number of sweeps to perform.
     sweep_duration: Time for each sweep.
     sweep_discard: Portion of sweep to discard for analysis (usually to eliminate capacitance) 0-1.
-    stacked: If true, each sweep will occupy the same time and appear stacked otherwise the IV will be stepped.
+    sweep_stacked: If true, each sweep will occupy the same time and appear stacked otherwise the IV will be stepped.
     estimation_state: The state number that should be recorded when the IV curve is running.
     reporting_state: The state number that should record when reporting the pore size.
     report_progress: Should the progress bar proceed based only on the IV sweeps
@@ -88,7 +89,7 @@ def iv_curve(
                 current_array.append(current)
 
             emitter.record(
-                time=start_time + lap_time if stacked else total_time,
+                time=start_time + lap_time if sweep_stacked else total_time,
                 voltage=voltage,
                 current=current,
                 state=estimation_state,
@@ -129,9 +130,7 @@ def iv_curve(
     )[0]
 
     emitter.record(
-        time=timer.check()[1],
-        voltage=voltage,
-        current=sourcemeter.current,
+        time=start_time + timer.check()[0] if sweep_stacked else timer.check()[1],
         estimated_diameter=pore_diameter * 1e9,
         state=reporting_state,
     )
@@ -139,6 +138,6 @@ def iv_curve(
 
     # Suggest a pipette offset based on the intersection of the IV plot
     offset = -popt[1] / popt[0]  # V
-    log.info(f"Offset by {pipette_offset - offset}V.")
+    log.info(f"Offset by {(pipette_offset - offset)*1000}mV.")
 
     return pore_diameter

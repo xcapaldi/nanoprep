@@ -14,9 +14,9 @@ def flat_cbd(
     emitter,
     aborter,
     pipette_offset,
-    breakdown_voltage,
-    cutoff_current,
-    capacitance_delay,
+    breakdown_voltage=8,  # V
+    cutoff_current=2e-7,  # A
+    capacitance_delay=10,  # s
     state=np.nan,
 ):
     # ensure timer is started
@@ -47,10 +47,10 @@ def ramp_cbd(
     emitter,
     aborter,
     pipette_offset,
-    ramp_start,  # V
-    ramp_rate,  # V/s
-    cutoff_current,
-    capacitance_delay,
+    ramp_start=0,  # V
+    ramp_rate=0.1,  # V/s
+    cutoff_current=2e-7,  # A
+    capacitance_delay=10,  # s
     state=np.nan,
 ):
     # ensure timer is started

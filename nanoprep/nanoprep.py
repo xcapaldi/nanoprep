@@ -48,8 +48,8 @@ from pymeasure.display.Qt import QtGui
 from pymeasure.display.windows import ManagedWindow
 
 from utilities.aborter import Aborter
-from utilities.emitter import Emitter
-from utilities.protocol import load_config
+from utilities.emitter import Emitter, SustainedEmitter
+from utilities.protocol import load_config, Parameters
 
 
 log = logging.getLogger("")
@@ -62,7 +62,7 @@ if len(sys.argv) > 1:
 else:
     config = "sample_config.py"
 
-loaded = load_config(config)
+loaded, defaults = load_config(config)
 
 
 class NanoprepProcedure(Procedure):
@@ -78,12 +78,12 @@ class NanoprepProcedure(Procedure):
     # Hardware Settings
     gpib_address = IntegerParameter(
         "GPIB address",
-        default=19,
+        default=defaults["gpib address"],
     )
     compliance_current = FloatParameter(
         "Compliance current",
         units="A",
-        default=1.0,
+        default=defaults["compliance current"],
         minimum=0,
     )
 
@@ -91,20 +91,19 @@ class NanoprepProcedure(Procedure):
     solution_conductivity = FloatParameter(
         "Solution conductivity",
         units="mS/cm",
-        # default is 2 M LiCl
-        default=115.3,
+        default=defaults["solution conductivity"],
         minimum=0,
     )
     effective_length = FloatParameter(
         "Effective pore length",
         units="nm",
-        default=12,
+        default=defaults["effective length"],
         minimum=0,
     )
     channel_conductance = FloatParameter(
         "Channel conductance",
         units="S",
-        default=0,
+        default=defaults["channel conductance"],
         minimum=0,
     )
 
@@ -112,13 +111,13 @@ class NanoprepProcedure(Procedure):
     pipette_offset = FloatParameter(
         "Pipette offset",
         units="mV",
-        default=0,
+        default=defaults["pipette offset"],
     )
 
     progress_style = ListParameter(
         "Progress style",
         choices=["absolute", "relative"],
-        default="absolute",
+        default=defaults["progress style"],
     )
 
     # Protocols
@@ -126,12 +125,15 @@ class NanoprepProcedure(Procedure):
         "Protocol", choices=list(loaded.keys()), default=list(loaded.keys())[0]
     )
 
+    # Sustained emitter
+    sustained = BooleanParameter("Sustained data", default=defaults["sustained"])
+
     # Cutoffs
     enable_cutoff_time = BooleanParameter("Cutoff time", default=False)
     cutoff_time = FloatParameter(
         "Cutoff time",
         units="s",
-        default=360,
+        default=defaults["cutoff time"],
         minimum=0,
         group_by="enable_cutoff_time",
     )
@@ -140,7 +142,7 @@ class NanoprepProcedure(Procedure):
     cutoff_current = FloatParameter(
         "Cutoff current",
         units="nA",
-        default=1,
+        default=defaults["cutoff current"],
         minimum=0,
         group_by="enable_cutoff_current",
     )
@@ -149,7 +151,7 @@ class NanoprepProcedure(Procedure):
     cutoff_diameter = FloatParameter(
         "Cutoff pore diameter",
         units="nm",
-        default=20,
+        default=defaults["cutoff diameter"],
         minimum=0,
         group_by="enable_cutoff_diameter",
     )
@@ -176,18 +178,24 @@ class NanoprepProcedure(Procedure):
     # main process in the procedure
     def execute(self):
         # refresh the configuration to get latest parameter changes
-        load_config(config)[self.protocol].run(
-            self.sourcemeter,
-            log,
-            Aborter(self.should_stop, log),
-            Emitter(self.emit, self.progress_style),
-            self.solution_conductivity / 10,  # S/m
-            self.effective_length * 10**-9,  # m
-            self.channel_conductance,
-            self.pipette_offset / 1000,  # V
-            self.cutoff_time if self.enable_cutoff_time else None,
-            self.cutoff_current * 10**-9 if self.enable_cutoff_current else None,
-            self.cutoff_diameter * 10**-9 if self.enable_cutoff_diameter else None,
+        load_config(config)[0][self.protocol].run(
+            Parameters(
+                self.sourcemeter,
+                log,
+                Aborter(self.should_stop, log),
+                SustainedEmitter(self.emit, self.progress_style)
+                if self.sustained
+                else Emitter(self.emit, self.progress_style),
+                self.solution_conductivity / 10,  # S/m
+                self.effective_length * 10**-9,  # m
+                self.channel_conductance,
+                self.pipette_offset / 1000,  # V
+                self.cutoff_time if self.enable_cutoff_time else None,
+                self.cutoff_current * 10**-9 if self.enable_cutoff_current else None,
+                self.cutoff_diameter * 10**-9
+                if self.enable_cutoff_diameter
+                else None,
+            )
         )
 
     # safely shut down instrument
@@ -210,6 +218,7 @@ class MainWindow(ManagedWindow):
                 "pipette_offset",
                 "progress_style",
                 "protocol",
+                "sustained",
                 "enable_cutoff_time",
                 "cutoff_time",
                 "enable_cutoff_current",
@@ -224,6 +233,7 @@ class MainWindow(ManagedWindow):
                 "channel_conductance",
                 "pipette_offset",
                 "protocol",
+                "sustained",
             ],
             x_axis="Time (s)",
             y_axis="Current (A)",
@@ -231,7 +241,7 @@ class MainWindow(ManagedWindow):
             hide_groups=True,
             directory_input=True,
         )
-        self.directory = "."
+        self.directory = defaults["directory"]
         self.setWindowTitle(
             "Nanoprep: pore formation, characterization, growth and conditioning"
         )

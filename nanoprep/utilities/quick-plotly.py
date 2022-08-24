@@ -10,7 +10,7 @@ import os
 import sys
 import csv
 import numpy as np
-import matplotlib.pyplot as plt
+import plotly.graph_objects as go
 
 # this will allow dragging and dropping csv's to plot on Windows
 file = sys.argv[1]
@@ -72,45 +72,73 @@ try:
 except:
     pass
 
-num_plots = 2
-if compatibility_mode:
-    num_plots = 1
+fig = go.Figure()
 
-plt.style.use("tableau-colorblind10")
-plt.tight_layout()
+fig.add_trace(
+    go.Scatter(
+        x=time, y=voltage, name="voltage", yaxis="y3", line=dict(color="#bb5566")
+    )
+)
 
-# plot current
-ax1 = plt.subplot(num_plots, 1, num_plots)
-(current_plot,) = plt.plot(time, current, linestyle="-", color="C0", label="Current")
-plt.tick_params("x", labelbottom=False)
-plt.ylabel("current (nA)")
 
-# plot voltage
-# ax2 = plt.subplot(num_plots,1,num_plots-1, sharex=ax1)
-ax2 = ax1.twinx()
-(voltage_plot,) = plt.plot(time, voltage, linestyle="--", color="C2", label="Voltage")
-plt.xlabel("time (s)")
-plt.ylabel("voltage (V)")
-plt.legend(handles=[voltage_plot, current_plot])
-if compatibility_mode:
-    plt.title(os.path.basename(file))
+fig.add_trace(go.Scatter(x=time, y=current, name="current", line=dict(color="#000000")))
 
 if not compatibility_mode:
-    # plot state
-    ax3 = plt.subplot(num_plots, 1, num_plots - 1, sharex=ax1)
-    (state_plot,) = plt.plot(time, state, linestyle="-", color="C3", label="State")
-    plt.tick_params("x", labelbottom=False)
-    plt.ylabel("state")
-
-    # plot estimated diameter
-    # ax4 = plt.subplot(num_plots,1,num_plots-3, sharex=ax1)
-    ax4 = ax3.twinx()
-    (diameter_plot,) = plt.plot(
-        time, diameter, linestyle="--", color="C1", label="Diameter"
+    fig.add_trace(
+        go.Scatter(
+            x=time, y=diameter, name="diameter", yaxis="y2", line=dict(color="#004488")
+        )
     )
-    plt.tick_params("x", labelbottom=False)
-    plt.ylabel("diameter (nm)")
-    plt.title(os.path.basename(file))
-    plt.legend(handles=[diameter_plot, state_plot])
 
-plt.show()
+    fig.add_trace(
+        go.Scatter(
+            x=time, y=state, name="state", yaxis="y4", line=dict(color="#ddaa33")
+        )
+    )
+
+
+# Create axis objects
+fig.update_layout(
+    xaxis=dict(domain=[0.07, 0.95]),
+    yaxis=dict(
+        title="current (nA)",
+        titlefont=dict(color="#000000"),
+        tickfont=dict(color="#000000"),
+    ),
+    yaxis2=dict(
+        title="diameter (nm)",
+        titlefont=dict(color="#004488"),
+        tickfont=dict(color="#004488"),
+        anchor="free",
+        overlaying="y",
+        side="left",
+        position=0.00,
+    ),
+    yaxis3=dict(
+        title="voltage (V)",
+        titlefont=dict(color="#bb5566"),
+        tickfont=dict(color="#bb5566"),
+        anchor="x",
+        overlaying="y",
+        side="right",
+    ),
+    yaxis4=dict(
+        title="state",
+        titlefont=dict(color="#ddaa33"),
+        tickfont=dict(color="#ddaa33"),
+        anchor="free",
+        overlaying="y",
+        side="right",
+        position=1.0,
+    ),
+)
+
+# Update layout properties
+fig.update_layout(
+    title_text=os.path.basename(file),
+    width=None,
+    height=None,
+    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="right", x=1),
+)
+
+fig.show()
