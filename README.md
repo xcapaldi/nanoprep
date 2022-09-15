@@ -261,6 +261,12 @@ Unused fields will be filled by a `numpy.nan`.
 State is very useful when you have some protocols that consists of smaller protocols lumped together.
 For example, one that combines breakdown with characterization and conditioning.
 You could pass states for each of the three processes so that later it is easier to filter the data.
+It is recommended (but not required) to reserve different ranges of numbers for different types of protocol operations.
+For example in the sample configuration:
+
+- 0-9 reserved for pore size measurement and estimation
+- 10-19 reserved for pulse application
+- 20-29 reserved for CBD and other formation techniques
 
 ### Sustained data
 There is an option for *sustained* data which means that instead of recording `numpy.nan` when a particular data point is not explicitly provided, instead the last recorded value is written.
@@ -305,12 +311,12 @@ The two easiest points of entry are adding your own configuration to the `contri
 
 Here are some larger tasks that I think would contribute greatly to the project:
 
-[ ] Apply the [typing](https://docs.python.org/3/library/typing.html) library across the project for clarity.
-[ ] Introduce system tests for individual protocols using dummy `emitters`, `loggers`, `timers` and `sourcemeters`.
-[ ] Create a dummy sourcemeter for PyMeasure so we can write actual system tests.
-[ ] Documentation (ideally use Google-style docstrings and [lazydocs](https://github.com/ml-tooling/lazydocs).
-[X] Migrate old protocols and write new one.
-[ ] Write a configuration validator so users can see what parts of this config are not working.
+- [ ] Apply the [typing](https://docs.python.org/3/library/typing.html) library across the project for clarity.
+- [ ] Introduce system tests for individual protocols using dummy `emitters`, `loggers`, `timers` and `sourcemeters`.
+- [ ] Create a dummy sourcemeter for PyMeasure so we can write actual system tests.
+- [ ] Documentation (ideally use Google-style docstrings and [lazydocs](https://github.com/ml-tooling/lazydocs).
+- [X] Migrate old protocols and write new one.
+- [ ] Write a configuration validator so users can see what parts of this config are not working.
 
 ## License
 MIT License
