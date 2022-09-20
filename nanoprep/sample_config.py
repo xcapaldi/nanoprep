@@ -131,29 +131,9 @@ class SquareWaveGrowToDimension(Protocol):
             reporting_state=1,  # state for reporting estimated size
         )
 
-        diameter = init_diameter
         cutoff_diameter = 20e-9  # nm
 
-        while True:
-            if diameter >= cutoff_diameter:
-                break
-
-            p.emitter.progress(init_diameter, cutoff_diameter, diameter)
-
-            if p.aborter.should_abort():
-                break
-
-            square_pulse(
-                t,
-                p.sourcemeter,
-                p.emitter,
-                p.aborter,
-                p.pipette_offset,
-                pulse_time=0.5,  # pulse time
-                pulse_voltage=10,  # pulse voltage
-                state=10,  # state for pulse application
-            )
-            diameter = iv_curve(
+        while (diameter := iv_curve(
                 t,
                 p.sourcemeter,
                 p.log,
@@ -171,8 +151,23 @@ class SquareWaveGrowToDimension(Protocol):
                 sweep_stacked=False,  # do not stack the sweeps
                 estimation_state=0,  # state number for running IV
                 reporting_state=1,  # state for reporting estimated size
-            )
+            )) < cutoff_diameter:
 
+            p.emitter.progress(init_diameter, cutoff_diameter, diameter)
+
+            if p.aborter.should_abort():
+                break
+
+            square_pulse(
+                t,
+                p.sourcemeter,
+                p.emitter,
+                p.aborter,
+                p.pipette_offset,
+                pulse_time=0.5,  # pulse time
+                pulse_voltage=10,  # pulse voltage
+                state=10,  # state for pulse application
+            )
 
 class CBDRampAndIV(Protocol):
     name = "Ramp CBD and then IV"
@@ -287,29 +282,9 @@ class CBDRampAndGrowToDimension(Protocol):
             report_progress=False,  # progress based on IV only
         )
 
-        diameter = init_diameter
         cutoff_diameter = 20e-9  # nm
 
-        while True:
-            if diameter >= cutoff_diameter:
-                break
-
-            p.emitter.progress(init_diameter, cutoff_diameter, diameter)
-
-            if p.aborter.should_abort():
-                break
-
-            square_pulse(
-                t,
-                p.sourcemeter,
-                p.emitter,
-                p.aborter,
-                p.pipette_offset,
-                pulse_time=0.5,  # pulse time
-                pulse_voltage=10,  # pulse voltage
-                state=11,  # state for pulse application
-            )
-            diameter = iv_curve(
+        while (diameter := iv_curve(
                 t,
                 p.sourcemeter,
                 p.log,
@@ -327,4 +302,20 @@ class CBDRampAndGrowToDimension(Protocol):
                 sweep_stacked=False,  # do not stack the sweeps
                 estimation_state=0,  # state number for running IV
                 reporting_state=1,  # state for reporting estimated size
+                )) < cutoff_diameter:
+
+            p.emitter.progress(init_diameter, cutoff_diameter, diameter)
+
+            if p.aborter.should_abort():
+                break
+
+            square_pulse(
+                t,
+                p.sourcemeter,
+                p.emitter,
+                p.aborter,
+                p.pipette_offset,
+                pulse_time=0.5,  # pulse time
+                pulse_voltage=10,  # pulse voltage
+                state=11,  # state for pulse application
             )
