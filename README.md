@@ -92,8 +92,8 @@ First you should import the helpers, utilities and any external modules your scr
 from utilities.protocol import Protocol
 from utilities.timer import Timer
 from helpers.iv_2022_0 import iv_curve
-from helpers.pulse_2022_0 import square_pulse, wait
-from helpers.cbd_2022_0 import flat_cbd, ramp_cbd
+from helpers.pulse_2022_1 import square_pulse, wait
+from helpers.cbd_2022_1 import flat_cbd, ramp_cbd
 from helpers.pipette_offset_2022_0 import pipette_offset
 ```
 

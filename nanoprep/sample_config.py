@@ -8,8 +8,9 @@ Copyright (c) 2022 Xavier Capaldi.
 from utilities.protocol import Protocol
 from utilities.timer import Timer
 from helpers.iv_2022_0 import iv_curve
-from helpers.pulse_2022_0 import square_pulse, wait
-from helpers.cbd_2022_0 import flat_cbd, ramp_cbd
+from helpers.leak_test_2022_0 import leak_test
+from helpers.pulse_2022_1 import square_pulse, wait
+from helpers.cbd_2022_1 import flat_cbd, ramp_cbd
 from helpers.pipette_offset_2022_0 import pipette_offset
 
 # the following variables can be set to change
@@ -133,7 +134,8 @@ class SquareWaveGrowToDimension(Protocol):
 
         cutoff_diameter = 20e-9  # nm
 
-        while (diameter := iv_curve(
+        while (
+            diameter := iv_curve(
                 t,
                 p.sourcemeter,
                 p.log,
@@ -151,7 +153,8 @@ class SquareWaveGrowToDimension(Protocol):
                 sweep_stacked=False,  # do not stack the sweeps
                 estimation_state=0,  # state number for running IV
                 reporting_state=1,  # state for reporting estimated size
-            )) < cutoff_diameter:
+            )
+        ) < cutoff_diameter:
 
             p.emitter.progress(init_diameter, cutoff_diameter, diameter)
 
@@ -169,12 +172,30 @@ class SquareWaveGrowToDimension(Protocol):
                 state=10,  # state for pulse application
             )
 
+
 class CBDRampAndIV(Protocol):
     name = "Ramp CBD and then IV"
 
     @staticmethod
     def run(p):
         t = Timer()
+        # leak test
+        leaky = leak_test(
+            t,
+            p.sourcemeter,
+            p.log,
+            p.emitter,
+            p.aborter,
+            p.pipette_offset,
+            peak_voltage=1,  # V
+            ramp_time=5,  # s
+            leak_current=1e-9,  # A
+            state=0,
+        )
+
+        if leaky:
+            return
+
         p.log.info("Start CBD ramp")
         ramp_cbd(
             t,
@@ -232,6 +253,23 @@ class CBDRampAndGrowToDimension(Protocol):
     @staticmethod
     def run(p):
         t = Timer()
+        # leak test
+        leaky = leak_test(
+            t,
+            p.sourcemeter,
+            p.log,
+            p.emitter,
+            p.aborter,
+            p.pipette_offset,
+            peak_voltage=1,  # V
+            ramp_time=5,  # s
+            leak_current=1e-9,  # A
+            state=0,
+        )
+
+        if leaky:
+            return
+
         p.log.info("Start CBD ramp")
         ramp_cbd(
             t,
@@ -284,7 +322,8 @@ class CBDRampAndGrowToDimension(Protocol):
 
         cutoff_diameter = 20e-9  # nm
 
-        while (diameter := iv_curve(
+        while (
+            diameter := iv_curve(
                 t,
                 p.sourcemeter,
                 p.log,
@@ -302,7 +341,8 @@ class CBDRampAndGrowToDimension(Protocol):
                 sweep_stacked=False,  # do not stack the sweeps
                 estimation_state=0,  # state number for running IV
                 reporting_state=1,  # state for reporting estimated size
-                )) < cutoff_diameter:
+            )
+        ) < cutoff_diameter:
 
             p.emitter.progress(init_diameter, cutoff_diameter, diameter)
 
